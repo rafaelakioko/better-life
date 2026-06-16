@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  FREE
+  TRIAL
+  PRO
+}
+
+enum ProfessionalType {
+  PERSONAL
+  NUTRICIONISTA
+  MEDICO
+}
+
+enum AppointmentType {
+  PRESENCIAL
+  ONLINE
+}
+
+enum AppointmentStatus {
+  PENDENTE
+  CONFIRMADO
+  CANCELADO
+  CONCLUIDO
+}
+
+enum ExerciseLevel {
+  INICIANTE
+  INTERMEDIARIO
+  AVANCADO
+}
+
+model User {
+  id                     String    @id @default(cuid())
+  name                   String?
+  email                  String    @unique
+  emailVerified          DateTime?
+  image                  String?
+  plan                   Plan      @default(FREE)
+  trialEndsAt            DateTime?
+  stripeCustomerId       String?   @unique
+  stripePriceId          String?
+  stripeSubscriptionId   String?   @unique
+  stripeCurrentPeriodEnd DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  accounts     Account[]
+  sessions     Session[]
+  workoutPlans WorkoutPlan[]
+  workoutLogs  WorkoutLog[]
+  streaks      Streak[]
+  appointments Appointment[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model WorkoutPlan {
+  id              String   @id @default(cuid())
+  userId          String
+  diasPorSemana   Int
+  minutosPorSessao Int
+  objetivo        String
+  dataInicio      DateTime @default(now())
+  ativo           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutLogs WorkoutLog[]
+}
+
+model WorkoutLog {
+  id           String      @id @default(cuid())
+  userId       String
+  planId       String?
+  data         DateTime    @default(now())
+  concluido    Boolean     @default(false)
+  duracaoReal  Int?
+  observacoes  String?
+  createdAt    DateTime    @default(now())
+
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan WorkoutPlan? @relation(fields: [planId], references: [id])
+}
+
+model Exercise {
+  id        String        @id @default(cuid())
+  nome      String
+  categoria String
+  nivel     ExerciseLevel @default(INICIANTE)
+  videoUrl  String?
+  descricao String?
+  ativo     Boolean       @default(true)
+  createdAt DateTime      @default(now())
+}
+
+model Streak {
+  id              String   @id @default(cuid())
+  userId          String
+  diasConsecutivos Int     @default(0)
+  ultimoCheckin   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+}
+
+model Professional {
+  id            String           @id @default(cuid())
+  nome          String
+  tipo          ProfessionalType
+  crmCref       String?
+  bio           String?
+  disponibilidade String?
+  ativo         Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  appointments Appointment[]
+}
+
+model Appointment {
+  id             String            @id @default(cuid())
+  userId         String
+  professionalId String
+  data           DateTime
+  tipo           AppointmentType   @default(ONLINE)
+  status         AppointmentStatus @default(PENDENTE)
+  observacoes    String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id])
+}
